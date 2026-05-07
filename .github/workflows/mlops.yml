@@ -137,18 +137,27 @@ jobs:
           name: model
           path: ./model_artifact
 
-      - name: Setup SSH key from base64
+      - name: Setup SSH key
         env:
-          VM_SSH_KEY_B64: ${{ secrets.VM_SSH_KEY }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$VM_SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
+          # Detect format: raw private key or base64-encoded
+          if echo "$VM_SSH_KEY" | head -c 50 | grep -q "BEGIN"; then
+            echo "Detected raw private key format"
+            printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
+          else
+            echo "Trying base64 decode"
+            printf '%s' "$VM_SSH_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/deploy_key
+          fi
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
           echo "Key file size:"
           wc -c ~/.ssh/deploy_key
-          echo "First line of key:"
+          echo "First line:"
           head -1 ~/.ssh/deploy_key
+          echo "Last line:"
+          tail -1 ~/.ssh/deploy_key
 
       - name: Copy model to VM
         run: |

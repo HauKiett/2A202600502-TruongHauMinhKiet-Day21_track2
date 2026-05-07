@@ -1,0 +1,23 @@
+artifact_path: file:D:/AIThucChien/track2_chuyensau_Data/Day21-Track2-CI-CD-for-AI-Systems/mlruns/0/models/m-4ea96a6d31af4bf893cf6227196653ac/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+    skops_trusted_types: null
+mlflow_version: 3.12.0
+model_id: m-4ea96a6d31af4bf893cf6227196653ac
+model_size_bytes: 15785
+model_uuid: m-4ea96a6d31af4bf893cf6227196653ac
+prompts: null
+run_id: 28f421f6a7db473c9d963bd24283d2db
+utc_time_created: '2026-05-07 04:26:07.458217'

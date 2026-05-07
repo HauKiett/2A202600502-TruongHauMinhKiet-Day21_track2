@@ -10,4 +10,8 @@ sa-key.json
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.pytest_tmp/
+pytest-cache-files-*/
+pytest-tmp-run/
 .DS_Store

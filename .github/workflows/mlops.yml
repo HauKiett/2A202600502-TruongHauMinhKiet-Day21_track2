@@ -52,19 +52,32 @@ jobs:
           pip install --upgrade pip
           pip install mlflow scikit-learn pandas joblib pyyaml numpy "dvc[http]"
 
-      - name: Configure DVC with DagsHub credentials
+      - name: Pull data with DVC from DagsHub
         env:
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           DAGSHUB_USER_REPO: ${{ secrets.DAGSHUB_USER_REPO }}
         run: |
+          set -e
           DAGSHUB_USER=$(echo "$DAGSHUB_USER_REPO" | cut -d'/' -f1)
-          dvc remote modify myremote --local auth basic
-          dvc remote modify myremote --local user "$DAGSHUB_USER"
-          dvc remote modify myremote --local password "$DAGSHUB_TOKEN"
+          echo "Setting up DVC auth for user: $DAGSHUB_USER"
 
-      - name: Pull data with DVC
-        run: |
-          dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc
+          dvc remote modify myremote auth basic
+          dvc remote modify myremote user "$DAGSHUB_USER"
+          dvc remote modify myremote password "$DAGSHUB_TOKEN"
+
+          echo "=== DVC config ==="
+          cat .dvc/config
+
+          echo "=== Test auth with curl ==="
+          curl -sf -u "$DAGSHUB_USER:$DAGSHUB_TOKEN" \
+            "https://dagshub.com/$DAGSHUB_USER_REPO.dvc/" \
+            -o /dev/null -w "HTTP %{http_code}\n" || echo "Auth check failed"
+
+          echo "=== dvc pull ==="
+          dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc -v
+
+          echo "=== Verify data files ==="
+          ls -la data/
 
       - name: Train model
         env:

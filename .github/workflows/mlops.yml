@@ -187,6 +187,12 @@ jobs:
             exit 1
           }
 
+      - name: Ensure target directories exist on VM
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} \
+            "mkdir -p ~/models ~/src && echo 'Directories ready'"
+
       - name: Copy model to VM
         run: |
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \

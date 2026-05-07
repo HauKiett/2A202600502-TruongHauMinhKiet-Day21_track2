@@ -163,9 +163,11 @@ jobs:
             printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
           else
             echo "=> Format: BASE64 (assumed)"
-            printf '%s' "$VM_SSH_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/deploy_key 2>&1 || {
-              echo "Base64 decode FAILED. Secret content is invalid."
-              echo "Last 30 chars: $(printf '%s' "$VM_SSH_KEY" | tail -c 30)"
+            # Chi giu lai cac ky tu base64 hop le (A-Z a-z 0-9 + / =)
+            CLEANED=$(printf '%s' "$VM_SSH_KEY" | tr -cd 'A-Za-z0-9+/=')
+            echo "Cleaned base64 length: $(printf '%s' "$CLEANED" | wc -c)"
+            printf '%s' "$CLEANED" | base64 -d > ~/.ssh/deploy_key 2>&1 || {
+              echo "Base64 decode FAILED."
               exit 1
             }
           fi

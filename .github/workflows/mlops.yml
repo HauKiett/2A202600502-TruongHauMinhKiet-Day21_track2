@@ -142,22 +142,48 @@ jobs:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          # Detect format: raw private key or base64-encoded
-          if echo "$VM_SSH_KEY" | head -c 50 | grep -q "BEGIN"; then
-            echo "Detected raw private key format"
+          set -e
+
+          # Debug: in length va 20 ky tu dau (an o giua bang ***)
+          KEY_LEN=$(printf '%s' "$VM_SSH_KEY" | wc -c)
+          echo "Secret length: $KEY_LEN chars"
+          FIRST_CHARS=$(printf '%s' "$VM_SSH_KEY" | head -c 30)
+          echo "First 30 chars: $FIRST_CHARS"
+
+          # Luu raw secret de kiem tra
+          printf '%s' "$VM_SSH_KEY" > /tmp/raw_secret.txt
+          echo "Raw secret line count: $(wc -l < /tmp/raw_secret.txt)"
+
+          # Thu format raw private key truoc (ho tro multi-line)
+          if printf '%s' "$VM_SSH_KEY" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
+            echo "=> Format: RAW private key (OpenSSH)"
+            printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
+          elif printf '%s' "$VM_SSH_KEY" | grep -q "BEGIN RSA PRIVATE KEY"; then
+            echo "=> Format: RAW private key (RSA)"
             printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
           else
-            echo "Trying base64 decode"
-            printf '%s' "$VM_SSH_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/deploy_key
+            echo "=> Format: BASE64 (assumed)"
+            printf '%s' "$VM_SSH_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/deploy_key 2>&1 || {
+              echo "Base64 decode FAILED. Secret content is invalid."
+              echo "Last 30 chars: $(printf '%s' "$VM_SSH_KEY" | tail -c 30)"
+              exit 1
+            }
           fi
+
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          echo "Key file size:"
-          wc -c ~/.ssh/deploy_key
-          echo "First line:"
-          head -1 ~/.ssh/deploy_key
-          echo "Last line:"
-          tail -1 ~/.ssh/deploy_key
+
+          echo "=== Key file inspect ==="
+          wc -lc ~/.ssh/deploy_key
+          echo "First line: $(head -1 ~/.ssh/deploy_key)"
+          echo "Last line: $(tail -1 ~/.ssh/deploy_key)"
+
+          # Validate key bang ssh-keygen
+          ssh-keygen -y -f ~/.ssh/deploy_key > /tmp/derived.pub 2>&1 && echo "Key VALID" || {
+            echo "Key INVALID:"
+            cat /tmp/derived.pub
+            exit 1
+          }
 
       - name: Copy model to VM
         run: |

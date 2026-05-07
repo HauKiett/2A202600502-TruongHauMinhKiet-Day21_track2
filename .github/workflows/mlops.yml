@@ -137,33 +137,35 @@ jobs:
           name: model
           path: ./model_artifact
 
+      - name: Setup SSH key from base64
+        env:
+          VM_SSH_KEY_B64: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VM_SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "Key file size:"
+          wc -c ~/.ssh/deploy_key
+          echo "First line of key:"
+          head -1 ~/.ssh/deploy_key
+
       - name: Copy model to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          source: "model_artifact/model.pkl"
-          target: "/home/${{ secrets.VM_USER }}/models/"
-          strip_components: 1
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            model_artifact/model.pkl \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USER }}/models/model.pkl
 
       - name: Copy serve.py to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          source: "src/serve.py"
-          target: "/home/${{ secrets.VM_USER }}/src/"
-          strip_components: 1
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            src/serve.py \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USER }}/src/serve.py
 
       - name: Restart service and health check
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} <<'ENDSSH'
             sudo systemctl restart mlops-serve || sudo systemctl start mlops-serve
             sleep 5
             for i in 1 2 3 4 5; do
@@ -178,3 +180,4 @@ jobs:
             echo "Health check FAILED after 5 attempts."
             sudo journalctl -u mlops-serve -n 50 --no-pager
             exit 1
+          ENDSSH

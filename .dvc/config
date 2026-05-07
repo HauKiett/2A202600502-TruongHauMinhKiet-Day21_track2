@@ -1,0 +1,4 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = https://dagshub.com/HauKiett/2A202600502-TruongHauMinhKiet-Day21_track2.dvc
